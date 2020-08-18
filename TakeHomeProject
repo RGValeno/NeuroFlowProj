@@ -1,0 +1,82 @@
+
+/**********Part 1:**********
+
+Run 1.1 to create table “TestwithTreatment” to be referenced in 1.2 */
+
+/*****1.1*****/
+create table TestwithTreatment
+select t2.Patient_id,
+from 
+(SELECT
+			patient_id,
+			ROW_NUMBER() OVER(PARTITION BY patient_id ORDER BY testYear, testMonth) as testNumber,
+			t.avgScore
+		FROM
+				(SELECT
+				patient_id,
+				month(date) as testMonth,
+				year(date) as testYear,
+				AVG(score) as avgScore
+			FROM NF
+			GROUP BY patient_id, month(date), year(date)
+			ORDER BY patient_id, year(date), month(date)) as t) as t2
+where t2.testnumber = 1 and t2.avgscore >=10
+
+
+/*****1.2*****/
+SELECT 
+t2.testNumber,
+avg(t2.avgScore)
+	FROM
+		(SELECT
+			patient_id,
+			ROW_NUMBER() OVER(PARTITION BY patient_id ORDER BY testYear, testMonth) as testNumber,
+			t.avgScore
+		FROM
+				(SELECT
+				a.patient_id,
+				month(date) as testMonth,
+				year(date) as testYear,
+				AVG(score) as avgScore
+			FROM NF a
+			join TestwithTreatment b
+			on a.patient_id = b.patient_id
+			GROUP BY a.patient_id, month(date), year(date)
+			ORDER BY a.patient_id, year(date), month(date)) as t) as t2
+Group by t2.testNumber
+Order by t2.testNumber	
+
+
+
+/**********Part 2:**********/
+
+/*****2.1*****/
+SELECT year(f.created_at) as startYear, month(f.created_at) as startMonth, COUNT(1) as fullCount, COUNT(f.exercise_completion_date) as exerciseCount, 100 * (COUNT(f.exercise_completion_date) / COUNT(1)) as percent
+FROM
+	(SELECT u.user_id, u.created_at, e.exercise_completion_date
+	FROM users as u
+	LEFT JOIN exercises as e 
+		ON u.user_id = e.user_id
+			AND year(u.created_at) = year(e.exercise_completion_date)
+			AND month(u.created_at) = month(e.exercise_completion_date)) as f
+GROUP BY year(f.created_at), month(f.created_at)
+ORDER BY year(f.created_at), month(f.created_at)
+
+/*****2.2*****/
+SELECT c.exerciseNumber, COUNT(1) as userCount
+FROM
+(SELECT u.user_id, COUNT(1) as exerciseNumber
+	FROM users as u
+	LEFT JOIN exercises as e 
+		ON u.user_id = e.user_id
+GROUP BY u.user_id
+ORDER BY u.user_id) as c
+GROUP BY c.exerciseNumber
+ORDER BY c.exerciseNumber
+
+/*****2.3*****/
+SELECT p.organization_name, AVG(t.score) as average
+FROM Providers p LEFT JOIN Phq9 t ON p.provider_id = t.provider_id
+GROUP BY p.organization_name
+ORDER BY average DESC
+LIMIT 5
